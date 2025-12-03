@@ -73,14 +73,12 @@ class _ContactViewScreenState extends State<ContactViewScreen> {
     }
   }
 
-  // Abre o Google Maps com o endereço
   Future<void> _openMap() async {
     if (_contact == null || _contact!.endereco == null || _contact!.endereco!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Este contato não tem endereço cadastrado.")));
       return;
     }
 
-    // Codifica o endereço para URL
     final query = Uri.encodeComponent('${_contact!.endereco}, ${_contact!.bairro ?? ''}, ${_contact!.cidade ?? ''}');
     final googleMapsUrl = Uri.parse("https://www.google.com/maps/search/?api=1&query=$query");
 
@@ -167,7 +165,6 @@ class _ContactViewScreenState extends State<ContactViewScreen> {
                       _buildInfoRow('Bairro / Cidade', '${_contact!.bairro} - ${_contact!.cidade}/${_contact!.estado}', Icons.location_city),
                     
                     const SizedBox(height: 20),
-                    // BOTÃO DO MAPA
                     if (_contact?.endereco != null && _contact!.endereco!.isNotEmpty)
                       ElevatedButton.icon(
                         onPressed: _openMap,

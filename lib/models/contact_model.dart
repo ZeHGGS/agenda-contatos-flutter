@@ -8,7 +8,7 @@ class Contact {
   bool isFavorite;
 
   String? cep;
-  String? endereco; // Rua/Logradouro
+  String? endereco;
   String? bairro;
   String? cidade;
   String? estado;

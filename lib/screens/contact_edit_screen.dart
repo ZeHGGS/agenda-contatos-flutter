@@ -3,8 +3,8 @@ import 'package:teste/models/contact_model.dart';
 import 'package:teste/utils/database_helper.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http; // [NOVO] Import do http
-import 'dart:convert'; // [NOVO] Para ler o JSON
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ContactEditScreen extends StatefulWidget {
   final Contact? contact;
@@ -24,7 +24,7 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
   late TextEditingController _telefoneController;
   late TextEditingController _emailController;
   late TextEditingController _dataNascController;
-  // [NOVOS CONTROLLERS]
+  
   late TextEditingController _cepController;
   late TextEditingController _enderecoController;
   late TextEditingController _bairroController;
@@ -41,7 +41,6 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
     filter: {"#": RegExp(r'[0-9]')},
   );
 
-  // [NOVO] Máscara para CEP
   final _cepFormatter = MaskTextInputFormatter(
     mask: '#####-###',
     filter: {"#": RegExp(r'[0-9]')},
@@ -59,16 +58,21 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
     _emailController = TextEditingController(text: _isEditing ? widget.contact!.email : '');
     _dataNascController = TextEditingController(text: _isEditing ? widget.contact!.dataNascimento : '');
     
-    // [INICIALIZANDO NOVOS CONTROLLERS]
     _cepController = TextEditingController(text: _isEditing ? widget.contact!.cep : '');
     _enderecoController = TextEditingController(text: _isEditing ? widget.contact!.endereco : '');
     _bairroController = TextEditingController(text: _isEditing ? widget.contact!.bairro : '');
     _cidadeController = TextEditingController(text: _isEditing ? widget.contact!.cidade : '');
     _estadoController = TextEditingController(text: _isEditing ? widget.contact!.estado : '');
 
-    _telefoneController.text = _phoneFormatter.maskText(_telefoneController.text);
-    _dataNascController.text = _dateFormatter.maskText(_dataNascController.text);
-    _cepController.text = _cepFormatter.maskText(_cepController.text);
+    if (_telefoneController.text.isNotEmpty) {
+      _telefoneController.text = _phoneFormatter.maskText(_telefoneController.text);
+    }
+    if (_dataNascController.text.isNotEmpty) {
+      _dataNascController.text = _dateFormatter.maskText(_dataNascController.text);
+    }
+    if (_cepController.text.isNotEmpty) {
+      _cepController.text = _cepFormatter.maskText(_cepController.text);
+    }
   }
 
   @override
@@ -86,7 +90,6 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
     super.dispose();
   }
 
-  // [NOVO] Função para buscar CEP na API
   Future<void> _buscarCep() async {
     String cep = _cepFormatter.getUnmaskedText();
     
@@ -97,7 +100,6 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
       return;
     }
 
-    // Mostra um loading simples
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -108,16 +110,13 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
       final url = Uri.parse('https://viacep.com.br/ws/$cep/json/');
       final response = await http.get(url);
 
-      // Fecha o loading
+      if (!mounted) return;
       Navigator.of(context).pop();
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
         if (data.containsKey('erro')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('CEP não encontrado!')),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CEP não encontrado!')));
         } else {
           setState(() {
             _enderecoController.text = data['logradouro'] ?? '';
@@ -127,15 +126,12 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
           });
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao buscar CEP (Servidor)')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro no servidor')));
       }
     } catch (e) {
-      Navigator.of(context).pop(); // Fecha o loading se der erro
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro de conexão: $e')),
-      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro de conexão: $e')));
     }
   }
 
@@ -149,7 +145,6 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
         email: _emailController.text,
         dataNascimento: _dataNascController.text,
         isFavorite: _isFavorite,
-        // [SALVANDO ENDEREÇO]
         cep: _cepFormatter.unmaskText(_cepController.text),
         endereco: _enderecoController.text,
         bairro: _bairroController.text,
@@ -162,7 +157,6 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
       } else {
         await DatabaseHelper.instance.create(contact);
       }
-
       _showSuccessScreen();
     }
   }
@@ -183,6 +177,7 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
 
     if (shouldDelete == true) {
       await DatabaseHelper.instance.delete(widget.contact!.id!);
+      if (!mounted) return;
       Navigator.of(context).pop('deleted');
     }
   }
@@ -194,7 +189,7 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
       builder: (BuildContext dialogContext) {
         Future.delayed(const Duration(milliseconds: 1500), () {
           Navigator.of(dialogContext).pop(); 
-          Navigator.of(context).pop('edited'); 
+          if (mounted) Navigator.of(context).pop('edited'); 
         });
         return const Dialog(
           backgroundColor: Color(0xFFC0A080),
@@ -240,35 +235,52 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
     } else if (label == 'Data de Nascimento') {
       keyboardType = TextInputType.datetime;
       inputFormatters = [_dateFormatter];
-      suffixIcon = IconButton(icon: const Icon(Icons.calendar_month), onPressed: _selectDate);
+      suffixIcon = IconButton(icon: const Icon(Icons.calendar_month, color: Colors.brown), onPressed: _selectDate);
     } else if (isCep) {
-      // [CONFIGURAÇÃO CAMPO CEP]
       keyboardType = TextInputType.number;
       inputFormatters = [_cepFormatter];
       suffixIcon = IconButton(
-        icon: const Icon(Icons.search),
+        icon: const Icon(Icons.search, color: Colors.brown),
         onPressed: _buscarCep,
-        tooltip: 'Buscar Endereço',
+        tooltip: 'Buscar CEP',
       );
     }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        inputFormatters: inputFormatters,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: const Color(0xFFDBC8B0),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-          suffixIcon: suffixIcon,
-        ),
-        validator: (value) {
-          if (label == 'Nome' && (value == null || value.isEmpty)) return 'O nome é obrigatório';
-          return null;
-        },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.brown[800],
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
+            style: const TextStyle(fontSize: 16),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: const Color(0xFFDBC8B0),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              suffixIcon: suffixIcon,
+            ),
+            validator: (value) {
+              if (label == 'Nome' && (value == null || value.isEmpty)) return 'O nome é obrigatório';
+              return null;
+            },
+          ),
+        ],
       ),
     );
   }
@@ -276,6 +288,7 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFF8F0),
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar Contato' : 'Adicionar Contato'),
         backgroundColor: Colors.transparent,
@@ -296,6 +309,7 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
                     : const Icon(Icons.person, size: 60, color: Colors.white),
               ),
               const SizedBox(height: 20),
+              
               _buildTextField('Nome', _nomeController),
               _buildTextField('Sobrenome', _sobrenomeController),
               _buildTextField('Telefone', _telefoneController),
@@ -303,12 +317,13 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
               _buildTextField('Data de Nascimento', _dataNascController),
               
               const Divider(height: 40, thickness: 2, color: Color(0xFFC0A080)),
-              const Text("Endereço", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.brown)),
+              const Align(
+                alignment: Alignment.centerLeft, 
+                child: Text(" Endereço", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.brown))
+              ),
               const SizedBox(height: 10),
               
-              // [CAMPO DE CEP COM LUPA]
               _buildTextField('CEP', _cepController, isCep: true),
-              
               Row(children: [
                 Expanded(child: _buildTextField('Cidade', _cidadeController)),
                 const SizedBox(width: 10),
@@ -316,17 +331,30 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
               ]),
               _buildTextField('Bairro', _bairroController),
               _buildTextField('Endereço', _enderecoController),
+
+              const SizedBox(height: 30),
+
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _saveContact,
+                  icon: const Icon(Icons.save),
+                  label: const Text("SALVAR CONTATO", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.brown[600],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _saveContact,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.brown[600],
-        child: const Icon(Icons.save),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       bottomNavigationBar: BottomAppBar(
         color: const Color(0xFFFFF8F0),
         elevation: 0,
@@ -339,11 +367,8 @@ class _ContactEditScreenState extends State<ContactEditScreen> {
                 icon: Icon(_isFavorite ? Icons.star : Icons.star_outline, color: _isFavorite ? Colors.amber[700] : Colors.grey[700], size: 30),
                 onPressed: () { setState(() { _isFavorite = !_isFavorite; }); },
               ),
-              const Spacer(), const Spacer(),
               if (_isEditing)
-                IconButton(icon: Icon(Icons.delete_outline, color: Colors.red[700], size: 30), onPressed: _deleteContact)
-              else
-                const SizedBox(width: 48),
+                IconButton(icon: Icon(Icons.delete_outline, color: Colors.red[700], size: 30), onPressed: _deleteContact),
             ],
           ),
         ),
