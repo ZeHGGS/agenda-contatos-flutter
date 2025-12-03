@@ -7,6 +7,12 @@ class Contact {
   String? dataNascimento;
   bool isFavorite;
 
+  String? cep;
+  String? endereco; // Rua/Logradouro
+  String? bairro;
+  String? cidade;
+  String? estado;
+
   Contact({
     this.id,
     required this.nome,
@@ -15,6 +21,11 @@ class Contact {
     this.email,
     this.dataNascimento,
     this.isFavorite = false,
+    this.cep,
+    this.endereco,
+    this.bairro,
+    this.cidade,
+    this.estado,
   });
 
   factory Contact.fromMap(Map<String, dynamic> map) {
@@ -26,6 +37,11 @@ class Contact {
       email: map['email'],
       dataNascimento: map['dataNascimento'],
       isFavorite: map['isFavorite'] == 1, 
+      cep: map['cep'],
+      endereco: map['endereco'],
+      bairro: map['bairro'],
+      cidade: map['cidade'],
+      estado: map['estado'],
     );
   }
 
@@ -38,6 +54,11 @@ class Contact {
       'email': email,
       'dataNascimento': dataNascimento,
       'isFavorite': isFavorite ? 1 : 0,
+      'cep': cep,
+      'endereco': endereco,
+      'bairro': bairro,
+      'cidade': cidade,
+      'estado': estado,
     };
   }
 }

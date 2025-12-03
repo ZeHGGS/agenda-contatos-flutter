@@ -23,7 +23,7 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 2, onCreate: _createDB, onUpgrade: _onUpgrade);
+    return await openDatabase(path, version: 3, onCreate: _createDB, onUpgrade: _onUpgrade);
   }
 
   Future _createDB(Database db, int version) async {
@@ -35,17 +35,27 @@ class DatabaseHelper {
       telefone TEXT,
       email TEXT,
       dataNascimento TEXT,
-      isFavorite INTEGER NOT NULL DEFAULT 0 
+      isFavorite INTEGER NOT NULL DEFAULT 0,
+      cep TEXT,
+      endereco TEXT,
+      bairro TEXT,
+      cidade TEXT,
+      estado TEXT
     )
     ''');
   }
   
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
+    if (oldVersion < 3) {
       try {
         await db.execute('ALTER TABLE contacts ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 0');
+        await db.execute('ALTER TABLE contacts ADD COLUMN cep TEXT');
+        await db.execute('ALTER TABLE contacts ADD COLUMN endereco TEXT');
+        await db.execute('ALTER TABLE contacts ADD COLUMN bairro TEXT');
+        await db.execute('ALTER TABLE contacts ADD COLUMN cidade TEXT');
+        await db.execute('ALTER TABLE contacts ADD COLUMN estado TEXT');
       } catch (e) {
-        print("Coluna isFavorite já existe: $e");
+        print("Erro ao atualizar banco: $e");
       }
     }
   }
@@ -78,7 +88,7 @@ class DatabaseHelper {
       final db = await instance.database;
       final maps = await db.query(
         'contacts',
-        columns: ['id', 'nome', 'sobrenome', 'telefone', 'email', 'dataNascimento', 'isFavorite'],
+        columns: null,
         where: 'id = ?',
         whereArgs: [id],
       );
